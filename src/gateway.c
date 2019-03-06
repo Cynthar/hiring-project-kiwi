@@ -9,21 +9,17 @@
 #define POSITIVE_RESPONSE 0x55u
 #define NEGATIVE_RESPONSE 0xAAu
 
+#define TRUE 0x01U
+#define FALSE 0x00U
+
 /* structure used to define the layout of the package sent or received from the backend */
 typedef struct 
 {
-	uint8_t deviceID[16]; /* the ID of the device that is being addressd - if it's all "0" the command is addressed to the gateway */
+	device_id_t deviceID; /* the ID of the device that is being addressd - if it's all "0" the command is addressed to the gateway */
 	uint8_t length;       /* the length of the useful part of the rest of the package */
 	uint8_t command;      /* the command sent by the backend */
 	uint8_t status;       /* status of the command - should be "0x00" when it's received and it will be updated for the response */
 	uint8_t data[109];	  /* data sent with the command */
-} modemPacketStruct_t;
-
-/* union to facilitate access to the package data */
-typedef union
-{
-	uint8_t             bytes[128];
-	modemPacketStruct_t modemPacket;
 } modemPacket_t;
 
 /* enum used to track the commands available in the gateway */
@@ -39,14 +35,14 @@ modemPacket_t *pDataPacket = &dataPacket;
 size_t packetSize;
 
 /* function returns true if the the id is "0" */
-static bool gw_own_id(uint8_t id[])
+static bool gw_own_id(device_id_t id)
 {
 	uint8_t index;
 	bool return_value = TRUE;
 
 	for(index=0; index<DEVICE_ID_SIZE; index++)
 	{
-		if(id[index] != 0u)
+		if(id.bytes[index] != 0u)
 		{	
 			/* if any byte in the id field is different than 0 it means 
 			 * a sensor is addressed or the packet is junk 
@@ -69,7 +65,7 @@ static bool gw_own_id(uint8_t id[])
 void handle_communication(void)
 {
 	/* check if there is any packet coming from the modem */
-	if(TRUE == modem_dequeue_incoming(&pDataPacket, &packetSize))
+	if(TRUE == modem_dequeue_incoming((uint8_t const **)&pDataPacket, &packetSize))
 	{
 		/* check if the command is addressed to the gateway */
 		if(TRUE == gw_own_id(pDataPacket->deviceID))
@@ -80,7 +76,7 @@ void handle_communication(void)
 				case PING:	
 					/* send a positive response back to the backend */
 					pDataPacket->status = POSITIVE_RESPONSE;
-					modem_enqueue_outgoing(pDataPacket, pDataPacket->length);		
+					modem_enqueue_outgoing((uint8_t const *)pDataPacket, pDataPacket->length);		
 				break;
 
 				case RESET:
