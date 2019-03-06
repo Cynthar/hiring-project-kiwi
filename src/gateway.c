@@ -107,4 +107,15 @@ void handle_communication(void)
 	{
 		/* do nohing - no request from the backend */
 	}
+
+	/* check if there is any packet coming from the sensor */
+	if(TRUE == wireless_dequeue_incoming(&(pDataPacket->deviceID),&(pDataPacket->length)) )
+	{
+		/* relay the message to the backend */
+		modem_enqueue_outgoing((uint8_t const *)pDataPacket, pDataPacket->length);	
+	}
+	else
+	{
+		/* do nohing - no request from the sensor */
+	}
 }
