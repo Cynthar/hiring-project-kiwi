@@ -85,10 +85,13 @@ void handle_communication(void)
 				break;
 
 				default:
-				/* do nothing - command not supported */
+					/* command not supported - send a negative response back to the backend */
+					pDataPacket->status = NEGATIVE_RESPONSE;
+					modem_enqueue_outgoing((uint8_t const *)pDataPacket, pDataPacket->length);	
 				break;
 			}
 		}
+		else
 		{
 			/* relay the command to the addressed device */
 			/* make sure the size does not exceed the wireless limits */
@@ -112,7 +115,7 @@ void handle_communication(void)
 	if(TRUE == wireless_dequeue_incoming(&(pDataPacket->deviceID),&(pDataPacket->length)) )
 	{
 		/* relay the message to the backend */
-		modem_enqueue_outgoing((uint8_t const *)pDataPacket, pDataPacket->length);	
+		modem_enqueue_outgoing((uint8_t const *)pDataPacket, (pDataPacket->length + DEVICE_ID_SIZE));	
 	}
 	else
 	{
