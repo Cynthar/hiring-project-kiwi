@@ -8,7 +8,6 @@
 #define NEGATIVE_RESPONSE 0xAAu
 
 #define TRUE 0x01U
-#define FALSE 0x00U
 
 /* structure used to define the layout of the package sent or received from the sensor */
 typedef struct 
@@ -30,7 +29,7 @@ typedef enum
 } sensorCommands_t;
 
 /* used to handle the data sent or received */
-sensorPacket_t dataPacket;
+static sensorPacket_t dataPacket;
 
 /**
  * This function is polled by the main loop and should handle any packets coming

@@ -30,9 +30,9 @@ typedef enum
 } gatewayCommands_t;
 
 /* used to handle the data sent or received */
-modemPacket_t dataPacket;
-modemPacket_t *pDataPacket = &dataPacket;
-size_t packetSize;
+static modemPacket_t dataPacket;
+static modemPacket_t *pDataPacket = &dataPacket;
+static size_t packetSize;
 
 /* function returns true if the the id is "0" */
 static bool gw_own_id(device_id_t id)
