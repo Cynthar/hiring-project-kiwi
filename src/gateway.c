@@ -4,6 +4,7 @@
 
 /* size of the device id in bytes */
 #define DEVICE_ID_SIZE 16u
+#define LENGTH_FIELD_SIZE 1u
 
 /* response codes to be sent back to the backend */
 #define POSITIVE_RESPONSE 0x55u
@@ -30,8 +31,10 @@ typedef enum
 } gatewayCommands_t;
 
 /* used to handle the data sent or received */
-static modemPacket_t dataPacket;
-static modemPacket_t *pDataPacket = &dataPacket;
+static modemPacket_t const inDataPacket;
+static modemPacket_t const *pInDataPacket = &inDataPacket;
+static modemPacket_t outDataPacket;
+static modemPacket_t *pOutDataPacket = &outDataPacket;
 static size_t packetSize;
 
 /* function returns true if the the id is "0" */
@@ -58,6 +61,21 @@ static bool gw_own_id(device_id_t id)
 	return return_value;
 }
 
+/* function used to copy the packet headder in order to send a response */
+static void gw_copy_buffer_headder(modemPacket_t * outputData, modemPacket_t const * inputData)
+{	
+	uint8_t index;
+
+	for(index=0; index<DEVICE_ID_SIZE; index++)
+	{
+		outputData->deviceID.bytes[index] = inputData->deviceID.bytes[index];		
+	}
+
+	outputData->length = 2u;
+	outputData->command = outputData->command;
+	outputData->status = 0x00u;
+}
+
 /**
  * This function is polled by the main loop and should handle any packets coming
  * in over the modem or 868 MHz communication channel.
@@ -65,18 +83,19 @@ static bool gw_own_id(device_id_t id)
 void handle_communication(void)
 {
 	/* check if there is any packet coming from the modem */
-	if(TRUE == modem_dequeue_incoming((uint8_t const **)&pDataPacket, &packetSize))
+	if(TRUE == modem_dequeue_incoming((uint8_t const **)&pInDataPacket, &packetSize))
 	{
 		/* check if the command is addressed to the gateway */
-		if(TRUE == gw_own_id(pDataPacket->deviceID))
+		if(TRUE == gw_own_id(pInDataPacket->deviceID))
 		{
 			/* process the command */
-			switch(pDataPacket->command)
+			switch(pInDataPacket->command)
 			{
 				case PING:	
 					/* send a positive response back to the backend */
-					pDataPacket->status = POSITIVE_RESPONSE;
-					modem_enqueue_outgoing((uint8_t const *)pDataPacket, pDataPacket->length);		
+					gw_copy_buffer_headder(pOutDataPacket, pInDataPacket);
+					pOutDataPacket->status = POSITIVE_RESPONSE;
+					modem_enqueue_outgoing((uint8_t const *)pOutDataPacket, (pOutDataPacket->length + LENGTH_FIELD_SIZE + DEVICE_ID_SIZE));		
 				break;
 
 				case RESET:
@@ -86,8 +105,9 @@ void handle_communication(void)
 
 				default:
 					/* command not supported - send a negative response back to the backend */
-					pDataPacket->status = NEGATIVE_RESPONSE;
-					modem_enqueue_outgoing((uint8_t const *)pDataPacket, pDataPacket->length);	
+					gw_copy_buffer_headder(pOutDataPacket, pInDataPacket);
+					pOutDataPacket->status = NEGATIVE_RESPONSE;
+					modem_enqueue_outgoing((uint8_t const *)pOutDataPacket, (pOutDataPacket->length + LENGTH_FIELD_SIZE + DEVICE_ID_SIZE));	
 				break;
 			}
 		}
@@ -95,10 +115,10 @@ void handle_communication(void)
 		{
 			/* relay the command to the addressed device */
 			/* make sure the size does not exceed the wireless limits */
-			if(pDataPacket->length <= WIRELESS_PAYLOAD_LENGTH)
+			if(pInDataPacket->length <= WIRELESS_PAYLOAD_LENGTH)
 			{
 				/* forward the command */
-				wireless_enqueue_outgoing(pDataPacket->deviceID, &(pDataPacket->length));
+				wireless_enqueue_outgoing(pInDataPacket->deviceID, &(pInDataPacket->length));
 			}
 			else
 			{
@@ -112,10 +132,10 @@ void handle_communication(void)
 	}
 
 	/* check if there is any packet coming from the sensor */
-	if(TRUE == wireless_dequeue_incoming(&(pDataPacket->deviceID),&(pDataPacket->length)) )
+	if(TRUE == wireless_dequeue_incoming(&(pOutDataPacket->deviceID),&(pOutDataPacket->length)) )
 	{
 		/* relay the message to the backend */
-		modem_enqueue_outgoing((uint8_t const *)pDataPacket, (pDataPacket->length + DEVICE_ID_SIZE));	
+		modem_enqueue_outgoing((uint8_t const *)pOutDataPacket, (pOutDataPacket->length + LENGTH_FIELD_SIZE + DEVICE_ID_SIZE));	
 	}
 	else
 	{
