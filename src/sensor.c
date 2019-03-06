@@ -103,7 +103,9 @@ void handle_communication(void)
 			break;
 
 			default:
-			/* do nothing - command not supported */
+				/* command not supported - send a negative response back to the gateway */
+				dataPacket.status = NEGATIVE_RESPONSE;
+				wireless_enqueue_outgoing((uint8_t const *)(&dataPacket));	
 			break;
 		}
 	}
