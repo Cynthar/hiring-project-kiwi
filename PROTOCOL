@@ -1,1 +1,29 @@
-YOUR PROTOCOL DEFINITION GOES HERE
+The payload data sent by the backend should have the following layout:
+  - first 16 bytes of data should contain the "device_ID"; if the addressed device is the gateway this field should contain all zeroes;
+  - the next byte should contain a number specifying the "length" of the rest of the packet (excluding this byte);
+  - the next byte should contain the "code" of the command (see commands bellow);
+  - the next byte represents the "status" of the command (this byte should be sent as "0x00" and will be used by the gateway for a response code)
+  - finally the rest of the bytes can be used for the additional "data" sent with the command (like a new KI to be stored)
+  
+The commands that can be sent to the gateway are:
+  - PING: the command code is "0x00" and the gateway should send back a positive response (see response codes bellow);
+  - RESET: the command code is "0x01" and the gateway will perform a soft reset (no response given).
+  
+
+The commands that can be sent to the sensors are:
+  - PING: the command code is "0x00" and the sensor should send back a positive response through the gateway (see response codes bellow);
+  - RESET: the command code is "0x01" and the sensor will perform a soft reset (no response given);
+  - ADD_KI: the command code is "0x02" and the sensor will store the new key (sent in the "data" field) and will give a positive response on success or a negative response on failure;
+  - REMOVE_KI: the command code is "0x03" and the sensor will remove the key (sent in the "data" field) and will give a positive response on success or a negative response on failure;
+  - OPEN_DOOR: the command code is "0x04" and the sensor will open the door and send back a positive response.
+  
+The codes for the responses are:
+  - 0x55: positive response
+  - 0xAA: negative response
+
+If a requested command is not implemented in the sensor, the sensor will give a negative response.
+
+The response is always constructed from the received request.
+The gateway will send back a packet with the same layout containing the "device_ID", "length", "command code" and "status" with the only changes being:
+  - the "length" will be changed to two; there is no need to send the data back in a response;
+  - the "status" will contain the response code.
